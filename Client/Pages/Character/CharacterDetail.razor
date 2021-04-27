@@ -1,0 +1,136 @@
+﻿@page "/Character/CharacterDetail/{id:int}"
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject BlazorRPG.Client.Services.ICharacterService characterService
+@using BlazorRPG.Shared;
+@implements IDisposable
+@using BlazorInputFile;
+@inject IJSRuntime jsRuntime
+
+
+<AuthorizeView>
+    <Authorized>
+
+        <h3><strong>Detaliu caracter...</strong></h3>
+        <br />
+        <br />
+
+        <div class="col-6">
+            <table class="table table-responsive">
+                <tr>
+                    <td>
+                        <strong>Titlu</strong>
+                    </td>
+                    <td><strong>@character.Name</strong></td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong>Inteligenta</strong>
+                    </td>
+                    <td>@character.Inteligence</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong>Document PDF</strong>
+                    </td>
+                    <td>@character.DocumentPDF</td>
+                </tr>
+                <tr>
+                    <td>
+                        <strong>clasa</strong>
+                    </td>
+                    <td>@clasaUrl</td>
+                </tr>
+            </table>
+        </div>
+        <br />
+        <button @onclick="GoToEdit" class="btn btn-outline-warning">
+            <span class="oi oi-pencil"></span>
+            Edit Character
+        </button>
+        <button @onclick="GoToDelete" class="btn btn-outline-danger">
+            <span class="oi oi-circle-x"></span>
+            Delete Character
+        </button>
+        <button @onclick="BackToList" class="btn btn-outline-secondary">
+            <span class="oi oi-media-skip-backward"></span>
+            Back To List
+        </button>
+        <br />
+        <br />
+        @if (!string.IsNullOrEmpty(InfoFile))
+        {
+           <div id="contentframe" style="position:absolute; top: 50px; left: 750px;">
+             <iframe  id="viewer"width="700px" height="500px">
+               &lt;/div&gt;
+            </iframe>
+            </div>
+           
+        }
+
+        </Authorized>
+</AuthorizeView>
+
+@code {
+
+   
+
+    private Character character = new Character();
+
+    string clasaUrl = string.Empty;
+
+    string InfoFile = string.Empty;
+
+    [Parameter]
+    public int Id { get; set; }
+
+    protected override void OnInitialized()
+    {
+        characterService.OnChange += StateHasChanged;
+
+
+    }
+    public void Dispose()
+    {
+        characterService.OnChange -= StateHasChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var result  = await characterService.GetCharacter(Id);
+
+        character = result.Data;
+
+        clasaUrl = result.Data.Class.Url;
+
+        InfoFile = result.Message;
+
+
+        var resultu = await characterService.LoadFileX(character.DocumentPDF);
+
+
+        await jsRuntime.InvokeVoidAsync("downloadFile", "application/pdf", resultu, "document.pdf");
+
+    }
+
+
+    private void BackToList()
+    {
+        NavigationManager.NavigateTo("/"+clasaUrl);
+    }
+
+    private void GoToEdit()
+    {
+        NavigationManager.NavigateTo("/Character/Edit/"+character.Id);
+        
+    }
+
+    private void GoToDelete()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+
+
+}
+
+

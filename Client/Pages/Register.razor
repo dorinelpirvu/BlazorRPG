@@ -1,0 +1,49 @@
+﻿@page "/register"
+@inject NavigationManager NavigationManager
+@inject BlazorRPG.Client.Services.IAuthService AuthService
+@inject IToastService ToastService
+
+<h3>Register</h3>
+
+<EditForm Model="@user" OnValidSubmit="HandleRegistration">
+    <DataAnnotationsValidator />
+    
+    <div class="form-group">
+        <label for="username">Username</label>
+        <InputText id="username" @bind-Value="user.Name" class="form-control" />
+        <ValidationMessage For="@(() => user.Name)" />
+    </div>
+    <div class="form-group">
+        <label for="password">Password</label>
+        <InputText id="password" @bind-Value="user.Password" type="password" class="form-control" />
+        <ValidationMessage For="@(() => user.Password)" />
+    </div>
+    <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <InputText id="confirmPassword" @bind-Value="user.PasswordConfirmed" type="password" class="form-control" />
+        <ValidationMessage For="@(() => user.PasswordConfirmed)" />
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Register</button>
+    <ValidationSummary/>
+</EditForm>
+
+@code {
+    UserDto user = new UserDto();
+
+    async void HandleRegistration()
+    {
+        var result = await AuthService.Register(user);
+        if (result.Success)
+        {
+            ToastService.ShowSuccess(result.Message);
+            NavigationManager.NavigateTo("/login");
+        }
+        else
+        {
+            ToastService.ShowError(result.Message);
+        }
+    }
+
+   
+}

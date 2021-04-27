@@ -1,0 +1,50 @@
+﻿@page "/"
+@using System.Security.Claims;
+
+    <AuthorizeView>
+        <Authorized>
+            <h1>Hi, @context.User.Identity.Name, bine ai revenit!</h1>
+            @if (result<0)
+            {
+                <h4> Licenta ta este expirata, te rog sa te loghezi din nou...</h4>
+                <a href="/Login" class="btn btn-primary">
+                    Apasati pentru logare...
+                </a>
+            }
+        </Authorized>
+        <NotAuthorized>
+            <h1>Welcome to Blazor test application!</h1>
+            <Login />
+        </NotAuthorized>
+    </AuthorizeView>
+
+    @code
+{
+        [CascadingParameter] Task<AuthenticationState> authenticationStateTask { get; set; }
+
+
+        private Claim expiry;
+
+        private long conv;
+        private DateTime ceas;
+        private int result;
+
+        protected override async Task OnInitializedAsync()
+        {
+
+            var authState = await authenticationStateTask;
+            var user = authState.User;
+
+
+            expiry = user.Claims.Where(claim => claim.Type.Equals("exp")).FirstOrDefault();
+            conv = Convert.ToInt64(expiry.ToString().Substring(5));
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            ceas= epoch.AddSeconds(conv);
+
+
+            result = DateTime.Compare(ceas, DateTime.Now);
+            
+
+        }
+
+}

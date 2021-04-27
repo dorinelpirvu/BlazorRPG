@@ -1,0 +1,173 @@
+﻿@page "/{ClassUrl}"
+@inject IRpgClassService RpgClassService;
+@inject ICharacterService CharacterService;
+@using BlazorRPG.Shared;
+@implements IDisposable
+@inject NavigationManager navigationManager;
+
+
+<AuthorizeView>
+    <NotAuthorized>
+        <h1>Pagina principala !</h1>
+    </NotAuthorized>
+    <Authorized>
+
+        <h3>Aici este sectiunea  @classUrl !</h3>
+        <a href="Character/Create" class="btn btn-primary">
+            Apasati pentru adaugare caracter...
+        </a>
+        <br />
+        <br />
+    
+        @foreach (var character in CharacterService.Characters)
+        {
+            <div class="card text-dark bg-light mb-3">
+                <div class="card-body">
+                    <li class="media my-3">
+                        <div class="media-img-wrapper mr-2">
+                            <a href="Character/CharacterDetail/@character.Id">
+                                <img class="media-img" src="/icon/C_Hat01.png" alt="@character.Name" />
+                            </a>
+                        </div>
+                        <div class="media-body">
+                            <a href="Character/CharacterDetail/@character.Id">
+                                <h4 class="mb-0">@character.Name</h4>
+                            </a>
+                            @*Strength: <p>@character.Strength</p>
+                            Puncte: <p>@character.Points</p>*@
+                        </div>
+                        <div class="col-6">
+                            <table class="table table-responsive">
+                                <tr>
+                                    <td>
+                                        <strong>Nume</strong>
+                                    </td>
+                                    <td>@character.Name</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Inteligenta</strong>
+                                    </td>
+                                    <td>@character.Inteligence</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <strong>Document PDF</strong>
+                                    </td>
+                                    <td>@character.DocumentPDF</td>
+                                </tr>
+
+                            </table>
+                        </div>
+                    </li>
+                </div>
+            </div>
+        }
+
+
+    </Authorized>
+</AuthorizeView>
+
+
+
+
+@code {
+
+    [Parameter]
+    public string classUrl { get; set; }
+
+    private RpgClass category = null;
+    private HubConnection hubConnection;
+    
+
+    protected override async Task OnParametersSetAsync()
+    {
+        
+
+        //CharacterService.LoadCharacters(classUrl);
+        //category = RpgClassService.RpgClasses.FirstOrDefault(c => c.Url.ToLower().Equals(classUrl.ToLower()));
+        CharacterService.OnChange += StateHasChanged;
+
+        if (classUrl != null)
+        {
+            await CharacterService.LoadCharacters(classUrl);
+            //category = RpgClassService.RpgClasses.FirstOrDefault(c => c.Url.ToLower().Equals(classUrl.ToLower()));
+        }
+        else
+        {
+            //category = null;
+            await CharacterService.LoadCharacters(classUrl);
+        }
+
+
+
+        hubConnection = new HubConnectionBuilder()
+ .WithUrl(navigationManager.ToAbsoluteUri("/DataHub"))
+ .Build();
+
+        hubConnection.On("ReceiveMessage", () =>
+        {
+            CallLoadData();
+
+        });
+
+        await hubConnection.StartAsync();
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+        //hubConnection = new HubConnectionBuilder()
+        //     .WithUrl(navigationManager.ToAbsoluteUri("/DataHub"))
+        //     .Build();
+
+        //hubConnection.On("ReceiveMessage", () =>
+        //{
+
+
+        //});
+
+        //await hubConnection.StartAsync();
+
+
+        ////CharacterService.LoadCharacters(classUrl);
+        ////category = RpgClassService.RpgClasses.FirstOrDefault(c => c.Url.ToLower().Equals(classUrl.ToLower()));
+        //CharacterService.OnChange += StateHasChanged;
+
+    }
+
+    private void CallLoadData()
+    {
+
+        Task.Run(async() =>
+        {
+            await LoadData();
+        });
+    }
+    protected async Task LoadData()
+    {
+        //CharacterService.LoadCharacters(classUrl);
+        //category = RpgClassService.RpgClasses.FirstOrDefault(c => c.Url.ToLower().Equals(classUrl.ToLower()));
+        CharacterService.OnChange += StateHasChanged;
+
+        if (classUrl != null)
+        {
+            await CharacterService.LoadCharacters(classUrl);
+            //category = RpgClassService.RpgClasses.FirstOrDefault(c => c.Url.ToLower().Equals(classUrl.ToLower()));
+        }
+        else
+        {
+            //category = null;
+            await CharacterService.LoadCharacters(classUrl);
+        }
+        StateHasChanged();
+    }
+
+
+    public void Dispose()
+    {
+        CharacterService.OnChange -= StateHasChanged;
+        hubConnection.DisposeAsync();
+    }
+}

@@ -1,0 +1,108 @@
+﻿@inject IRpgClassService rpgClassService
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="top-row pl-4 navbar navbar-dark">
+    <a class="navbar-brand" href=""> <img src="icon/C_Hat01.png"/>BlazorRPG</a>
+    <button class="navbar-toggler" @onclick="ToggleNavMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</div>
+
+<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+    <ul class="nav flex-column">
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Home
+            </NavLink>
+        </li>
+        <AuthorizeView>
+            <Authorized>
+                @foreach (var item in rpgClassService.RpgClasses)
+                {
+                    <li class="nav-item px-3">
+                        <NavLink class="nav-link" href="@item.Url">
+                            <span class="oi oi-@item.NumeRpg" aria-hidden="true"></span> @item.NumeRpg
+                        </NavLink>
+                    </li>
+                }
+
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="fetchdata">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Fetch data
+                    </NavLink>
+                </li>
+                <li class="nav-item px-3">
+                    <a class="nav-link" @onclick="Logout" style="cursor:pointer">
+                        <span class="oi oi-account-logout" aria-hidden="true"></span> Log out
+                    </a>
+                </li>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="">
+                        <span class="oi oi-badge" aria-hidden="true"></span> @displaydata
+                    </NavLink>
+                </li>
+            </Authorized>
+            <NotAuthorized>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="Login">
+                        <span class="oi oi-account-login" aria-hidden="true"></span> Login
+                    </NavLink>
+                </li>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="register">
+                        <span class="oi oi-account-login" aria-hidden="true"></span> Register
+                    </NavLink>
+                </li>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="">
+                        <span class="oi oi-badge" aria-hidden="true"></span> @displaydata
+                    </NavLink>
+                </li>
+            </NotAuthorized>
+        </AuthorizeView>
+    </ul>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private string displaydata;
+    private System.Threading.Timer timer;
+
+
+    private  void   ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+
+
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        timer = new System.Threading.Timer(async (object stateInfo) =>
+        {
+            displaydata = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss");
+            StateHasChanged();
+        }, new System.Threading.AutoResetEvent(false), 1000, 1000);
+
+        
+        
+        
+        
+        
+        await AuthStateProvider.GetAuthenticationStateAsync();
+        await rpgClassService.LoadRpgClasses();
+
+
+    }
+
+    private async void Logout()
+    {
+        ToggleNavMenu();
+        await LocalStorage.RemoveItemAsync("authToken");
+        await AuthStateProvider.GetAuthenticationStateAsync();
+        NavigationManager.NavigateTo("/");
+    }
+}

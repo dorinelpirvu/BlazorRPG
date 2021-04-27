@@ -1,0 +1,258 @@
+﻿@page "/Character/Edit/{Id:int}"
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject IRpgClassService rpgClassService
+@inject BlazorRPG.Client.Services.ICharacterService characterService
+@using BlazorRPG.Shared;
+@using Tewr.Blazor.FileReader;
+@inject IFileReaderService filereader
+@using System.IO;
+@inject HttpClient client;
+@using BlazorInputFile;
+@inject IJSRuntime jsruntime
+
+<h3 >Editare</h3>
+
+
+@if (Id < 1 )
+{
+
+    ToastService.ShowError("Incearca din nou...");
+}
+else if (character == null)
+{
+    ToastService.ShowWarning("Loading Author For Edit");
+}
+else
+{
+<EditForm Model="character" OnValidSubmit="HandleUpdate">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="form-group">
+        <label for="Title">Titlu</label>
+        <InputText @bind-Value="character.Name" class="form-control" id="Name" />
+    </div>
+    <div class="form-group">
+        <label for="an">an</label>
+        <InputNumber @bind-Value="character.Inteligence" class="form-control" id="Inteligence" />
+    </div>
+    <div class="form-group">
+        <label for="ISBN">ISBN</label>
+        <InputNumber @bind-Value="character.Points" class="form-control" id="Points" />
+    </div>
+    <div class="form-group">
+        <label for="Pret">Pret</label>
+        <InputNumber @bind-Value="character.Strength" class="form-control" id="price" />
+    </div>
+    <div class="form-group">
+        <label for="RpgClassId">ClasaRPG</label>
+        <select @bind="character.RpgClassId" class="form-control" id="RPGClassId">
+            @if (RpgClase != null)
+            {
+                @foreach (var rpg in RpgClase)
+                {
+                    <option value="@rpg.Id">@rpg.NumeRpg</option>
+                }
+            }
+        </select>
+    </div>
+    <br />
+    <button class="btn btn-primary" type="submit">
+        <span class="oi oi-pencil"></span>
+        Editare
+    </button>
+    <button @onclick="BackToList" class="btn btn-outline-secondary">
+        <span class="oi oi-media-skip-backward"></span>
+        Back To List
+    </button>
+    <br />
+    <br />
+    <div class="form-group">
+        <label for="bookcover">Fisier tip PDF</label>
+        <Input type="file" @ref="inputReference" @onchange="SelectareFisier" />
+        <ul>
+            <li>Marime:@size</li>
+            <li>Nume:@type</li>
+        </ul>
+        @if (fileName != string.Empty || resultu != string.Empty)
+        {
+            <iframe id="viewer" style="width:100%;height:200px;"></iframe>
+        }
+    </div>
+
+</EditForm>
+}
+
+
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    public Character character = new Character();
+    public List<RpgClass> RpgClase { get; set; } = new List<RpgClass>();
+    public string RpgClassId { get; set; }
+
+    ElementReference inputReference;
+    string fileName = string.Empty;
+    long size;
+    string type = string.Empty;
+    public Stream fileStream;
+
+    private IFileListEntry file;
+    bool isSucces = true;
+    private string imageDataURL;
+    bool isInvalidFileType = true;
+    private MemoryStream msFile;
+
+    string clasaUrl = string.Empty;
+    string InfoFile = string.Empty;
+    string resultu = string.Empty;
+    bool selectareFisier=false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        var result = await characterService.GetCharacter(Id);
+        character = result.Data;
+        clasaUrl = result.Data.Class.Url;
+        InfoFile = result.Message;
+        character.RpgClassId = character.Class.Id;
+
+        resultu = await characterService.LoadFileX(character.DocumentPDF);
+
+
+        await jsruntime.InvokeVoidAsync("downloadFile", "application/pdf", resultu, "document.pdf");
+
+    }
+
+    private void BackToList()
+    {
+        NavigationManager.NavigateTo("/" + clasaUrl);
+    }
+
+    async Task SelectareFisier()
+    {
+
+        selectareFisier = true;
+        byte[] buffer;
+
+
+        var file = (await filereader.CreateReference(inputReference).EnumerateFilesAsync()).FirstOrDefault();
+        if (file != null)
+        {
+            var fileInfo = await file.ReadFileInfoAsync();
+            fileName = fileInfo.Name;
+            size = fileInfo.Size;
+            type = fileInfo.Type;
+            if (type == "application/pdf")
+            {
+                using (var ms = await file.CreateMemoryStreamAsync((int)fileInfo.Size))
+                {
+                    fileStream = new MemoryStream(ms.ToArray());
+                    buffer = new byte[size];
+                    var filestream2 = new MemoryStream(ms.ToArray());
+                    await filestream2.ReadAsync(buffer);
+                    await jsruntime.InvokeVoidAsync("downloadFile", "application/pdf", buffer, "document.pdf");
+                }
+                isInvalidFileType = false;
+
+
+            }
+            else
+            {
+
+                isInvalidFileType = true;
+                ToastService.ShowWarning("Fisier incorect/inexistent !");
+
+            }
+        }
+
+    }
+
+    async void HandleUpdate()
+    {
+
+        try
+        {
+            if (!selectareFisier)
+            {
+                var upd = await characterService.Update(character);
+                if (upd.Success)
+                {
+                    var mesaj = $"A fost editat caracterul {upd.Data.Name}!";
+                    ToastService.ShowSuccess(mesaj, upd.Message);
+                    NavigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    ToastService.ShowError(upd.Message);
+                }
+            }
+            else
+            {
+                if (!isInvalidFileType)
+                {
+                    bool raspunsUpload = await UploadFisier();
+
+                    if (!raspunsUpload)
+                    {
+                        ToastService.ShowError("nu s a reusit incarcarea fisierului");
+                        return;
+                    }
+                }
+                else
+                {
+                    ToastService.ShowWarning("Fisier cu format incorect/inexistent !");
+                    return;
+                }
+                character.DocumentPDF = fileName;
+                var result = await characterService.Update(character);
+                if (result.Success)
+                {
+                    var mesaj = $"A fost creat caracterul {result.Data.Name}!";
+                    ToastService.ShowSuccess(mesaj, result.Message);
+                    NavigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    ToastService.ShowError(result.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+
+            ToastService.ShowError("Eroare la scrierea in DB");
+
+        }
+    }
+
+    async Task<bool> UploadFisier()
+    {
+
+        var content = new MultipartFormDataContent();
+        content.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data");
+
+
+        content.Add(new StreamContent(fileStream, (int)fileStream.Length), "fisier", fileName);
+
+        var response = await client.PostAsync("api/Images/UploadFile", content);
+        if (response.IsSuccessStatusCode)
+        {
+            ToastService.ShowSuccess("Incarcare fisier reusita");
+            return true;
+        }
+        return false;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+
+        await rpgClassService.LoadRpgClasses();
+        RpgClase = rpgClassService.RpgClasses;
+
+    }
+}

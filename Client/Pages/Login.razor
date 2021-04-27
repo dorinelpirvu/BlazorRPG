@@ -1,0 +1,50 @@
+﻿@page "/Login"
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject BlazorRPG.Client.Services.IAuthService AuthService
+@inject IToastService ToastService
+
+<h3>Login</h3>
+
+<EditForm Model="user" OnSubmit="HandleLogin">
+    <DataAnnotationsValidator />
+    <div class="form-group">
+        <label for="username">Username</label>
+        <InputText id="username" @bind-Value="user.Name" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label for="password">Password</label>
+        <InputText id="password" @bind-Value="user.Password" type="password" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Login</button>
+    <ValidationSummary />
+</EditForm>
+
+@code {
+    private UserLogin user = new UserLogin();
+
+    private async void HandleLogin()
+    {
+
+        var result = await AuthService.Login(user);
+        if (result.Success)
+        {
+
+            ToastService.ShowSuccess(result.Message);
+            await LocalStorage.SetItemAsync<string>("authToken",result.Data);
+            await AuthStateProvider.GetAuthenticationStateAsync();
+
+            
+            NavigationManager.NavigateTo("/",forceLoad:true);
+           
+
+        }
+        else
+        {
+            ToastService.ShowError(result.Message);
+            NavigationManager.NavigateTo("/Register");
+        }
+
+    }
+}
